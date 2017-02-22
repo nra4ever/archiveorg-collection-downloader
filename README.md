@@ -1,4 +1,10 @@
 Batch downloads documents in a given collection from archive.org.
+
+###Note: this script requires the python libraries Requests and clint to be installed, to do so, run the command below
+```shell
+pip install requests clint
+```
+
 Examples:
 ```shell
 #Download issues of American Woodworker to the current directory (the default)
