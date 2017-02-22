@@ -4,7 +4,7 @@ import os
 import requests
 from clint.textui import progress
 
-LIST_URL='https://github.com/nra4ever/archiveorg-collection-downloader/blob/master/download.py'
+LIST_URL='http://archive.org/advancedsearch.php?q=collection%3A{0}&rows=1000&output=json'
 DETAILS_URL='https://archive.org/details/{0}&output=json'
 PUB_URL='http://archive.org/download/{0}/{1}'
 
@@ -18,7 +18,6 @@ url = LIST_URL.format(args.collection)
 print('Fetching document list from {0}'.format(url))
 r = requests.get(url)
 data = r.json()
-
 
 for doc in data['response']['docs']:
     idd = doc['identifier']
