@@ -1,10 +1,8 @@
 from __future__ import division
 import argparse
-import json
 import os
-import time
-from sys import stderr
-from urllib import request
+import requests
+from clint.textui import progress
 
 LIST_URL='http://archive.org/advancedsearch.php?q=collection%3A{0}&rows=1000&output=json'
 DETAILS_URL='https://archive.org/details/{0}&output=json'
@@ -18,34 +16,13 @@ args = parser.parse_args()
 
 url = LIST_URL.format(args.collection)
 print('Fetching document list from {0}'.format(url))
-response = request.urlopen(url)
-listdata = response.read()
-data = json.loads(listdata.decode('UTF-8'))
-
-
-def reporthook(blocknum, blocksize, totalsize):
-    global start_time
-    if blocknum == 0:
-        start_time = time.time()
-        return
-    duration = time.time() - start_time
-    readsofar = blocknum * blocksize
-    if totalsize > 0:
-        percent = readsofar * 1e2 / totalsize
-        progress_size = int(blocknum * blocksize)
-        speed = int(progress_size / (1024 * duration))
-        s = "\r%5.1f%% %*d / %d \t %d KB/" % (
-            percent, len(str(totalsize)), readsofar, totalsize, speed)
-        stderr.write(s)
-        if readsofar >= totalsize:
-            stderr.write("\n")
-    else:
-        stderr.write("read %d\n" % (readsofar,))
+r = requests.get(url)
+data = r.json()
 
 for doc in data['response']['docs']:
     idd = doc['identifier']
     print('Fetching item details for {0}'.format(idd))
-    details = json.loads(request.urlopen(DETAILS_URL.format(idd)).read().decode('UTF-8'))
+    details = requests.get(DETAILS_URL.format(idd)).json()
     toDownload = ''
     lastSize = 0
     skip = ''
@@ -68,5 +45,10 @@ for doc in data['response']['docs']:
             continue
         url = PUB_URL.format(idd, toDownload)
         print('Downloading {0} as {1} from {2} to {3}'.format(idd, args.format, url, localFilename))
-        request.urlretrieve(url, localFilename, reporthook)
-        
+        dr = requests.get(url, stream=True)
+        with open(localFilename, 'wb') as f:
+            total_length = int(dr.headers.get('content-length'))
+            for chunk in progress.bar(dr.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
