@@ -19,6 +19,7 @@ print('Fetching document list from {0}'.format(url))
 r = requests.get(url)
 data = r.json()
 
+
 for doc in data['response']['docs']:
     idd = doc['identifier']
     print('Fetching item details for {0}'.format(idd))
@@ -39,16 +40,28 @@ for doc in data['response']['docs']:
         if size > lastSize:
             toDownload = filename
             lastSize = size
-    if not skip == localFilename:
-        if toDownload == '':
-            print('No {0} file found for {1}'.format(args.format, idd))
-            continue
-        url = PUB_URL.format(idd, toDownload)
-        print('Downloading {0} as {1} from {2} to {3}'.format(idd, args.format, url, localFilename))
-        dr = requests.get(url, stream=True)
-        with open(localFilename, 'wb') as f:
-            total_length = int(dr.headers.get('content-length'))
-            for chunk in progress.bar(dr.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
-                if chunk:
-                    f.write(chunk)
-                    f.flush()
+        if not skip == localFilename:
+            if toDownload == '':
+                print('No {0} file found for {1}'.format(args.format, idd))
+                continue
+            url = PUB_URL.format(idd, toDownload)
+            print('Downloading {0} as {1} from {2} to {3}'.format(idd, args.format, url, localFilename))
+            dr = requests.get(url, stream=True)
+            with open(localFilename, 'wb') as f:
+                total_length = int(dr.headers.get('content-length'))
+                for chunk in progress.bar(dr.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                    if chunk:
+                        f.write(chunk)
+                        f.flush()
+            if not os.stat(localFilename)[6] == total_length:
+                print("ERROR: File '" + localFilename + "' Incomplete, retrying")
+                os.remove(localFilename)
+                with open(localFilename, 'wb') as f:
+                    total_length = int(dr.headers.get('content-length'))
+                    for chunk in progress.bar(dr.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                        if chunk:
+                            f.write(chunk)
+                            f.flush()
+                        if not os.stat(localFilename)[6] == total_length:
+                            print("ERROR: File '" + localFilename + "' still incomplete after retry!!")
+                            os.rename(localFilename, localFilename + ".IMCOMPLETE")
