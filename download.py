@@ -4,7 +4,7 @@ import os
 import requests
 from clint.textui import progress
 
-LIST_URL='http://archive.org/advancedsearch.php?q=collection%3A{0}&rows=1000&output=json'
+LIST_URL='https://github.com/nra4ever/archiveorg-collection-downloader/blob/master/download.py'
 DETAILS_URL='https://archive.org/details/{0}&output=json'
 PUB_URL='http://archive.org/download/{0}/{1}'
 
@@ -49,10 +49,22 @@ for doc in data['response']['docs']:
             dr = requests.get(url, stream=True)
             with open(localFilename, 'wb') as f:
                 total_length = int(dr.headers.get('content-length'))
-                for chunk in progress.bar(dr.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
-                    if chunk:
-                        f.write(chunk)
-                        f.flush()
+                try:
+                    for chunk in progress.bar(dr.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                        if chunk:
+                            f.write(chunk)
+                            f.flush()
+                except (ConnectionAbortedError, ConnectionError, ConnectionResetError):
+                    try:
+                        print("ERROR: Connection Aborted, retrying")
+                        os.remove(localFilename)
+                        for chunk in progress.bar(dr.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+                            if chunk:
+                                f.write(chunk)
+                                f.flush()
+                    except (ConnectionAbortedError, ConnectionError, ConnectionResetError):
+                        print("ERROR: Connection Aborted during retry, marking file as .INCOMPLETE!!")
+                        os.rename(localFilename, localFilename + ".IMCOMPLETE")
             if not os.stat(localFilename)[6] == total_length:
                 print("ERROR: File '" + localFilename + "' Incomplete, retrying")
                 os.remove(localFilename)
